@@ -78,6 +78,39 @@ interface CreateSearchSelectParams {
   manager: SettingsManager;
 }
 
+/**
+ * Sets visibility of Settings entry
+ *
+ * @param {Setting | null} s
+ * @param {boolean} value
+ */
+export function setSettingsVisibility(s: Setting | null, value: boolean) {
+  if (s == null || s == undefined) return;
+
+  s.settingEl.toggleClass('hidden', value);
+}
+
+/**
+ * Gets Setting element by name from Settings array
+ *
+ * @param {string} settingName
+ * @param {Setting[]} settingElem
+ * @returns {Setting | null}
+ */
+export function getSettingElementByName(
+  settingName: string,
+  settingElem: Setting[]
+): Setting | null {
+  let ret = null;
+  settingElem.forEach((s) => {
+    if (s.nameEl.innerText == settingName) {
+      ret = s;
+    }
+  });
+
+  return ret;
+}
+
 export function createSearchSelect({
   choices,
   key,

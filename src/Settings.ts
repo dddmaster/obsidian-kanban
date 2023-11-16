@@ -34,6 +34,8 @@ import {
   defaultDateTrigger,
   defaultTimeTrigger,
   getListOptions,
+  getSettingElementByName,
+  setSettingsVisibility,
 } from './settingHelpers';
 import {
   cleanupMetadataSettings,
@@ -47,8 +49,10 @@ import {
   cleanUpDateSettings,
   renderDateSettings,
 } from './settings/DateColorSettings';
+import { updatePathVisibility } from './helpers';
 
 const numberRegEx = /^\d+(?:\.\d+)?$/;
+const defaultKanbanNotesFolderName: string = 'kanbanNotes';
 
 export type KanbanFormats = 'basic';
 
@@ -58,12 +62,15 @@ export interface KanbanSettings {
   'date-format'?: string;
   'date-picker-week-start'?: number;
   'date-time-display-format'?: string;
+  'custom-note-folder'?: boolean;
   'date-trigger'?: string;
   'hide-card-count'?: boolean;
   'hide-date-display'?: boolean;
   'hide-date-in-title'?: boolean;
+  'hide-kanban-notes-folder'?: boolean;
   'hide-tags-display'?: boolean;
   'hide-tags-in-title'?: boolean;
+  'kanban-notes-folder-name'?: string;
   'lane-width'?: number;
   'link-date-to-daily-note'?: boolean;
   'max-archive-size'?: number;
@@ -109,6 +116,9 @@ export const settingKeyLookup: Record<keyof KanbanSettings, true> = {
   'metadata-keys': true,
   'new-card-insertion-method': true,
   'new-line-trigger': true,
+  'custom-note-folder': true,
+  'hide-kanban-notes-folder': true,
+  'kanban-notes-folder-name': true,
   'new-note-folder': true,
   'new-note-template': true,
   'archive-with-date': true,
@@ -149,6 +159,7 @@ export class SettingsManager {
   plugin: KanbanPlugin;
   config: SettingsManagerConfig;
   settings: KanbanSettings;
+  settingElem: Array<Setting> = [];
   cleanupFns: Array<() => void> = [];
   applyDebounceTimer: number = 0;
 
@@ -161,6 +172,10 @@ export class SettingsManager {
     this.plugin = plugin;
     this.config = config;
     this.settings = settings;
+
+    if (this.settings['kanban-notes-folder-name'] == undefined) {
+      this.settings['kanban-notes-folder-name'] = defaultKanbanNotesFolderName;
+    }
   }
 
   applySettingsUpdate(spec: Spec<KanbanSettings>) {
@@ -275,22 +290,153 @@ export class SettingsManager {
         })
       );
 
-    new Setting(contentEl)
-      .setName(t('Note folder'))
-      .setDesc(
-        t(
-          'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.'
-        )
-      )
-      .then(
-        createSearchSelect({
-          choices: vaultFolders,
-          key: 'new-note-folder',
-          local,
-          placeHolderStr: t('Default folder'),
-          manager: this,
+    this.settingElem.push(
+      new Setting(contentEl)
+        .setName(t('Custom Note Folder'))
+        .setDesc(t('use a custom note folder or stick to default subfolder'))
+        .addToggle((toggle) => {
+          const settingName = 'custom-note-folder';
+          const [value, globalValue] = this.getSetting(settingName, local);
+
+          if (value !== undefined && value !== null) {
+            toggle.setValue(value as boolean);
+          } else if (globalValue !== undefined && globalValue !== null) {
+            toggle.setValue(globalValue as boolean);
+          } else {
+            toggle.setValue(true);
+          }
+
+          toggle.onChange((newValue) => {
+            this.applySettingsUpdate({
+              'custom-note-folder': {
+                $set: newValue,
+              },
+            });
+            setSettingsVisibility(
+              getSettingElementByName(t('Note folder'), this.settingElem),
+              !newValue
+            );
+          });
         })
-      );
+        .addExtraButton((b) => {
+          b.setIcon('lucide-rotate-ccw')
+            .setTooltip(t('Reset to default'))
+            .onClick(() => {
+              const elem = getSettingElementByName(
+                t('Custom Note Folder'),
+                this.settingElem
+              )?.components[0] as ToggleComponent;
+              elem?.setValue(true);
+
+              this.applySettingsUpdate({
+                'custom-note-folder': {
+                  $set: true,
+                },
+              });
+            });
+        })
+    );
+
+    new Setting(contentEl)
+      .setClass('hidden')
+      .setName(t('kanban Notes Folder'))
+      .setDesc(
+        t('Name of the Kanban Notes folder, this setting is hidden on purpose')
+      )
+      .addText((text) => {
+        const [value, globalValue] = this.getSetting(
+          'kanban-notes-folder-name',
+          local
+        );
+
+        text.inputEl.placeholder = `${
+          globalValue ? globalValue : defaultKanbanNotesFolderName
+        } (default)`;
+
+        text.inputEl.value = value
+          ? value.toString()
+          : defaultKanbanNotesFolderName;
+
+        text.onChange((val) => {
+          if (!val) return;
+
+          if (val == '')
+            return (text.inputEl.value = defaultKanbanNotesFolderName);
+
+          this.applySettingsUpdate({
+            'kanban-notes-folder-name': {
+              $set: val,
+            },
+          });
+        });
+      });
+
+    this.settingElem.push(
+      new Setting(contentEl)
+        .setName(t('Note folder'))
+        .setClass(this.settings['custom-note-folder'] ? '_' : 'hidden')
+        .setDesc(
+          t(
+            'Notes created from Kanban cards will be placed in this folder. If blank, they will be placed in the default location for this vault.'
+          )
+        )
+        .then(
+          createSearchSelect({
+            choices: vaultFolders,
+            key: 'new-note-folder',
+            local,
+            placeHolderStr: t('Default folder'),
+            manager: this,
+          })
+        )
+    );
+
+    this.settingElem.push(
+      new Setting(contentEl)
+        .setName(t('Hide Note Folder'))
+        .setDesc(t('Hide default Kanban Note Folder from navigation.'))
+        .addToggle((toggle) => {
+          const [value, globalValue] = this.getSetting(
+            'hide-kanban-notes-folder',
+            local
+          );
+
+          if (value !== undefined && value !== null) {
+            toggle.setValue(value as boolean);
+          } else if (globalValue !== undefined && globalValue !== null) {
+            toggle.setValue(globalValue as boolean);
+          } else {
+            toggle.setValue(true);
+          }
+
+          toggle.onChange((newValue) => {
+            this.applySettingsUpdate({
+              'hide-kanban-notes-folder': {
+                $set: newValue,
+              },
+            });
+
+            updatePathVisibility(this.app, this.settings, newValue);
+          });
+        })
+        .addExtraButton((b) => {
+          b.setIcon('lucide-rotate-ccw')
+            .setTooltip(t('Reset to default'))
+            .onClick(() => {
+              const elem = getSettingElementByName(
+                'Hide Note Folder',
+                this.settingElem
+              )?.components[0] as ToggleComponent;
+              elem?.setValue(true);
+
+              this.applySettingsUpdate({
+                'hide-kanban-notes-folder': {
+                  $set: true,
+                },
+              });
+            });
+        })
+    );
 
     new Setting(contentEl)
       .setName(t('Hide card counts in list titles'))

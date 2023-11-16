@@ -154,6 +154,15 @@ export default {
   'Set colors for the date displayed below the card based on the rules below':
     'Set colors for the date displayed below the card based on the rules below',
   'Add date color': 'Add date color',
+  'Hide default Kanban Note Folder from navigation.':
+    'Hide default Kanban Note Folder from navigation.',
+  'Hide Note Folder': 'Hide Note Folder',
+  'kanban Notes Folder': 'kanban Notes Folder',
+  'Name of the Kanban Notes folder, this setting is hidden on purpose':
+    'Name of the Kanban Notes folder, this setting is hidden on purpose',
+  'Custom Note Folder': 'Custom Note Folder',
+  'use a custom note folder or stick to default subfolder':
+    'use a custom note folder or stick to default subfolder',
 
   // MetadataSettings.tsx
   'Metadata key': 'Metadata key',

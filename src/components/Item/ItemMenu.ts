@@ -69,16 +69,35 @@ export function useItemMenu({
 
                 const newNoteFolder =
                   stateManager.getSetting('new-note-folder');
+
                 const newNoteTemplatePath =
                   stateManager.getSetting('new-note-template');
 
-                const targetFolder = newNoteFolder
+                let targetFolder = newNoteFolder
                   ? (stateManager.app.vault.getAbstractFileByPath(
                       newNoteFolder as string
                     ) as TFolder)
                   : stateManager.app.fileManager.getNewFileParent(
                       stateManager.file.path
                     );
+                // overwrite with current dir if neccesary
+                if (stateManager.getSetting('custom-note-folder') === false) {
+                  const dirPath =
+                    stateManager.file.parent.path +
+                    '/' +
+                    stateManager.getSetting('kanban-notes-folder-name');
+                  const exists = await stateManager.app.vault.adapter.exists(
+                    dirPath
+                  );
+
+                  if (!exists) {
+                    await this.app.vault.createFolder(dirPath);
+                  }
+
+                  targetFolder = stateManager.app.vault.getAbstractFileByPath(
+                    dirPath
+                  ) as TFolder;
+                }
 
                 const newFile = (await (
                   stateManager.app.fileManager as any

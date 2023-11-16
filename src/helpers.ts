@@ -1,8 +1,9 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, TFolder, Vault } from 'obsidian';
 import {
   getDailyNoteSettings,
   getDateFromFile,
 } from 'obsidian-daily-notes-interface';
+import { KanbanSettings } from './Settings';
 
 export function gotoNextDailyNote(app: App, file: TFile) {
   const date = getDateFromFile(file, 'day');
@@ -74,4 +75,49 @@ export function hasFrontmatterKey(file: TFile) {
 export function laneTitleWithMaxItems(title: string, maxItems?: number) {
   if (!maxItems) return title;
   return `${title} (${maxItems})`;
+}
+
+/**
+ * Sets visibility of element identified by path.
+ *
+ * @param path
+ * @param visibility
+ * @returns
+ */
+export function setPathVisibility(path: string, visibility: boolean): void {
+  const elem = document
+    .querySelector(`[data-path="${path}"]`)
+    ?.closest('.nav-folder');
+
+  if (!elem) {
+    return;
+  }
+
+  if (elem.classList.contains('kanban-plugin__hide-folder') == visibility) {
+    elem.classList.toggle('kanban-plugin__hide-folder');
+  }
+}
+
+/**
+ * Updates visibility of all kanban notes folder according to current settings.
+ *
+ * @param {App} app
+ */
+export function updatePathVisibility(
+  app: App,
+  settings: KanbanSettings,
+  overwrite: boolean | null = null
+): void {
+  const folder = app.vault.getRoot();
+  Vault.recurseChildren(folder as TFolder, (f) => {
+    if (
+      f instanceof TFolder &&
+      f.name == settings['kanban-notes-folder-name']
+    ) {
+      setPathVisibility(
+        f.path,
+        overwrite != null ? !overwrite : !settings['hide-kanban-notes-folder']
+      );
+    }
+  });
 }

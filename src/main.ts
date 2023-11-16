@@ -18,7 +18,11 @@ import Preact from 'preact/compat';
 
 import { getParentWindow } from './dnd/util/getWindow';
 import { createApp } from './DragDropApp';
-import { hasFrontmatterKey } from './helpers';
+import {
+  hasFrontmatterKey,
+  setPathVisibility,
+  updatePathVisibility,
+} from './helpers';
 import { KanbanView, kanbanIcon, kanbanViewType } from './KanbanView';
 import { t } from './lang/helpers';
 import { basicFrontmatter, frontMatterKey } from './parsers/common';
@@ -124,6 +128,7 @@ export default class KanbanPlugin extends Plugin {
 
     window.addEventListener('keydown', this.handleShift);
     window.addEventListener('keyup', this.handleShift);
+    updatePathVisibility(this.app, this.settings);
   }
 
   handleShift = (e: KeyboardEvent) => {
@@ -157,6 +162,10 @@ export default class KanbanPlugin extends Plugin {
   }
 
   getStateManager(file: TFile) {
+    setPathVisibility(
+      file.parent.path + '/' + this.settings['kanban-notes-folder-name'],
+      !this.settings['hide-kanban-notes-folder']
+    );
     return this.stateManagers.get(file);
   }
 
@@ -341,6 +350,12 @@ export default class KanbanPlugin extends Plugin {
   }
 
   registerEvents() {
+    this.registerEvent(
+      app.workspace.on('active-leaf-change', () => {
+        updatePathVisibility(this.app, this.settings);
+      })
+    );
+
     this.registerEvent(
       app.workspace.on('file-menu', (menu, file, source, leaf) => {
         // Add a menu item to the folder context menu to create a board
